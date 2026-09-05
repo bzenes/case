@@ -10,8 +10,10 @@ export function DevUserSwitcher() {
   const users = trpc.auth.listDevUsers.useQuery();
   const me = trpc.auth.me.useQuery();
   const switchUser = trpc.auth.switchUser.useMutation({
-    onSuccess: async () => {
+    onSuccess: async (_result, variables) => {
       await utils.auth.me.invalidate();
+      const target = users.data?.find((user) => user.id === variables.userId);
+      router.push(target?.role === "admin" ? "/admin/campaigns" : "/creator/campaigns");
       router.refresh();
     },
   });

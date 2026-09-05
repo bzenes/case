@@ -143,6 +143,20 @@ same test (fresh fixtures each time via `resetDb()`), per PLAN.md's "run
 
 (filled in during Phase 7)
 
+## Bugs found by actually clicking through the UI
+
+- **Duplicate-submission conflict wasn't being caught.**
+  `isUniqueViolation` checked `err.code === '23505'` on the caught error
+  directly, but Drizzle wraps the driver's pg error in a
+  `DrizzleQueryError` - the real Postgres error (with `.code`) lives at
+  `err.cause`, not on `err` itself. The unique-URL test only exercised the
+  DB constraint, never the catch branch, so it passed while the actual API
+  call returned a raw 500 with a leaked SQL query in the message. Found by
+  hitting the endpoint over real HTTP after the UI was built, not by
+  reading the code. Fixed in `src/server/db/errors.ts` and added
+  `tests/integration/submissions-create.test.ts` to cover it going
+  forward.
+
 ## AI tooling
 
 Built with Claude Code (Sonnet 5), working phase-by-phase from PLAN.md.
