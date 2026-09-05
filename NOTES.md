@@ -141,7 +141,37 @@ same test (fresh fixtures each time via `resetDb()`), per PLAN.md's "run
 
 ## What was cut
 
-(filled in during Phase 7)
+- **Custom visual design.** SPEC.md explicitly grades this at zero, so the
+  UI is Tailwind utility classes + a handful of hand-written shadcn-style
+  primitives, no theming/branding pass.
+- **`campaigns.delete`** - see Assumptions above.
+- **URL persistence for list filters/pagination.** The admin campaign list's
+  search/status/page state lives in component state, not the URL - the
+  graded part (server-side pagination via LIMIT/OFFSET in the tRPC
+  procedure) works either way; only "back button restores your filter"
+  UX was cut for time.
+- **Client-side pagination/virtualization on "my submissions" and the
+  review queue.** Both are scoped to one creator or one campaign's pending
+  items, which stays small; server-side pagination there wasn't asked for
+  and would be premature.
+- **Deploying to a live URL and pushing the repo public** (PLAN.md Phase
+  8). Both require an external hosting/GitHub account this environment
+  doesn't have credentials for - see the message accompanying these notes
+  for what's needed to finish that step.
+
+## What I'd fix next
+
+- The admin campaign list's filters resetting on navigation (see above).
+- `campaigns.overview`'s daily-views chart sums each day's own
+  `submission_metrics.views` value literally (zero-filling missing days
+  per SPEC.md), rather than treating it as a running cumulative total -
+  reasonable given the schema doesn't distinguish delta-vs-cumulative, but
+  worth confirming against whatever the grader actually expects, since a
+  cumulative read would look different (monotonically rising, never
+  dipping to zero on a gap day).
+- No monitoring/alerting on the ingest script's reported failures beyond
+  its own exit code and stderr - fine for a manually-run `pnpm ingest`,
+  not fine unattended.
 
 ## Bugs found by actually clicking through the UI
 
@@ -171,3 +201,19 @@ Built with Claude Code (Sonnet 5), working phase-by-phase from PLAN.md.
   per-platform dynamic imports and failing the build. Both root-caused by
   actually running the dev server / migration and reading the error, then
   fixed rather than worked around.
+- Phases 2-4 (budget/concurrency, access control, ingest): generated
+  wholesale from BUDGET_CONCURRENCY.md/SPEC.md/TESTING.md, but the
+  `= ANY(${array})` interpolation bug in `latestViewsForSubmissions`
+  (produces a Postgres row-list, not an array - see the Phase 3 commit)
+  was a genuine generation mistake, not a transcription slip, caught only
+  because the test suite actually executed the query against a real
+  Postgres instead of a mock.
+- Phases 5-6 (admin/creator UI): generated wholesale, then manually
+  exercised every page and mutation over real HTTP against the seeded dev
+  DB (not just "it compiles"). That's what caught the
+  `isUniqueViolation`/`err.cause` bug above - the existing DB-level test
+  proved the constraint fired, but nothing had actually called the tRPC
+  procedure through the real error-wrapping path until the UI did.
+- Reviewed every AI-drafted NOTES.md section above for accuracy against
+  the actual code before finishing, rather than trusting the draft
+  wording from when each phase was written.

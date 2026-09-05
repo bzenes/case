@@ -11,6 +11,13 @@ export default function EditCampaignPage({ params }: { params: Promise<{ id: str
   if (campaign.isLoading) {
     return <p className="text-muted-foreground">Loading...</p>;
   }
+  if (campaign.error) {
+    return (
+      <p className="text-destructive" role="alert">
+        Couldn&apos;t load this campaign: {campaign.error.message}
+      </p>
+    );
+  }
   if (!campaign.data) {
     return <p className="text-destructive">Campaign not found.</p>;
   }

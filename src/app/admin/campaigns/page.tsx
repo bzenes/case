@@ -37,6 +37,7 @@ export default function AdminCampaignsPage() {
 
       <div className="flex gap-3">
         <Input
+          aria-label="Search campaigns by title"
           placeholder="Search by title..."
           value={search}
           onChange={(e) => {
@@ -46,6 +47,7 @@ export default function AdminCampaignsPage() {
           className="max-w-xs"
         />
         <Select
+          aria-label="Filter campaigns by status"
           value={status}
           onChange={(e) => {
             setStatus(e.target.value);
@@ -66,11 +68,11 @@ export default function AdminCampaignsPage() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border text-left text-muted-foreground">
-              <th className="p-3 font-medium">Title</th>
-              <th className="p-3 font-medium">Status</th>
-              <th className="p-3 font-medium">Budget</th>
-              <th className="p-3 font-medium">Payout / 1k</th>
-              <th className="p-3 font-medium">Dates</th>
+              <th scope="col" className="p-3 font-medium">Title</th>
+              <th scope="col" className="p-3 font-medium">Status</th>
+              <th scope="col" className="p-3 font-medium">Budget</th>
+              <th scope="col" className="p-3 font-medium">Payout / 1k</th>
+              <th scope="col" className="p-3 font-medium">Dates</th>
             </tr>
           </thead>
           <tbody>
@@ -78,6 +80,13 @@ export default function AdminCampaignsPage() {
               <tr>
                 <td className="p-3 text-muted-foreground" colSpan={5}>
                   Loading...
+                </td>
+              </tr>
+            )}
+            {query.error && (
+              <tr>
+                <td className="p-3 text-destructive" colSpan={5} role="alert">
+                  Couldn&apos;t load campaigns: {query.error.message}
                 </td>
               </tr>
             )}

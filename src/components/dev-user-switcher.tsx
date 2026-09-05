@@ -32,6 +32,17 @@ export function DevUserSwitcher() {
           {me.data ? `${me.data.email} (${me.data.role})` : "nobody"}
         </span>
       </p>
+      {users.isLoading && <p className="text-sm text-muted-foreground">Loading users...</p>}
+      {users.error && (
+        <p className="text-sm text-destructive" role="alert">
+          Couldn&apos;t load users: {users.error.message}
+        </p>
+      )}
+      {switchUser.error && (
+        <p className="text-sm text-destructive" role="alert">
+          Couldn&apos;t switch user: {switchUser.error.message}
+        </p>
+      )}
       <div className="flex flex-wrap gap-2">
         {users.data?.map((user) => (
           <Button

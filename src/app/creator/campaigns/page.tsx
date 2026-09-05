@@ -13,6 +13,11 @@ export default function BrowseCampaignsPage() {
     <div className="flex flex-col gap-4">
       <h1 className="text-xl font-semibold">Active campaigns</h1>
       {campaigns.isLoading && <p className="text-muted-foreground">Loading...</p>}
+      {campaigns.error && (
+        <p className="text-destructive" role="alert">
+          Couldn&apos;t load campaigns: {campaigns.error.message}
+        </p>
+      )}
       {campaigns.data?.length === 0 && (
         <p className="text-muted-foreground">No active campaigns right now.</p>
       )}
@@ -31,6 +36,7 @@ export default function BrowseCampaignsPage() {
               <Button
                 size="sm"
                 variant={openFor === campaign.id ? "outline" : "default"}
+                aria-expanded={openFor === campaign.id}
                 onClick={() => setOpenFor(openFor === campaign.id ? null : campaign.id)}
               >
                 {openFor === campaign.id ? "Cancel" : "Submit a clip"}

@@ -14,11 +14,11 @@ export default function MySubmissionsPage() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border text-left text-muted-foreground">
-              <th className="p-3 font-medium">Campaign</th>
-              <th className="p-3 font-medium">Platform</th>
-              <th className="p-3 font-medium">Status</th>
-              <th className="p-3 font-medium">Views</th>
-              <th className="p-3 font-medium">Est. earnings</th>
+              <th scope="col" className="p-3 font-medium">Campaign</th>
+              <th scope="col" className="p-3 font-medium">Platform</th>
+              <th scope="col" className="p-3 font-medium">Status</th>
+              <th scope="col" className="p-3 font-medium">Views</th>
+              <th scope="col" className="p-3 font-medium">Est. earnings</th>
             </tr>
           </thead>
           <tbody>
@@ -26,6 +26,13 @@ export default function MySubmissionsPage() {
               <tr>
                 <td className="p-3 text-muted-foreground" colSpan={5}>
                   Loading...
+                </td>
+              </tr>
+            )}
+            {submissions.error && (
+              <tr>
+                <td className="p-3 text-destructive" colSpan={5} role="alert">
+                  Couldn&apos;t load your submissions: {submissions.error.message}
                 </td>
               </tr>
             )}

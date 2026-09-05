@@ -131,6 +131,13 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   if (campaign.isLoading) {
     return <p className="text-muted-foreground">Loading...</p>;
   }
+  if (campaign.error) {
+    return (
+      <p className="text-destructive" role="alert">
+        Couldn&apos;t load this campaign: {campaign.error.message}
+      </p>
+    );
+  }
   if (!campaign.data) {
     return <p className="text-destructive">Campaign not found.</p>;
   }
@@ -157,6 +164,11 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
       <section className="flex flex-col gap-4">
         <h2 className="text-lg font-medium">Overview</h2>
         {overview.isLoading && <p className="text-muted-foreground">Loading...</p>}
+        {overview.error && (
+          <p className="text-destructive" role="alert">
+            Couldn&apos;t load overview stats: {overview.error.message}
+          </p>
+        )}
         {overview.data && (
           <>
             <div className="grid grid-cols-3 gap-4">
@@ -201,12 +213,26 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border text-left text-muted-foreground">
-                <th className="p-3 font-medium">Creator</th>
-                <th className="p-3 font-medium">Platform</th>
-                <th className="p-3 font-medium">Actions</th>
+                <th scope="col" className="p-3 font-medium">Creator</th>
+                <th scope="col" className="p-3 font-medium">Platform</th>
+                <th scope="col" className="p-3 font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
+              {reviewQueue.isLoading && (
+                <tr>
+                  <td className="p-3 text-muted-foreground" colSpan={3}>
+                    Loading...
+                  </td>
+                </tr>
+              )}
+              {reviewQueue.error && (
+                <tr>
+                  <td className="p-3 text-destructive" colSpan={3} role="alert">
+                    Couldn&apos;t load the review queue: {reviewQueue.error.message}
+                  </td>
+                </tr>
+              )}
               {reviewQueue.data?.length === 0 && (
                 <tr>
                   <td className="p-3 text-muted-foreground" colSpan={3}>
