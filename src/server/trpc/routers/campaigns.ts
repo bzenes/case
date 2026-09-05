@@ -1,6 +1,8 @@
 import { TRPCError } from "@trpc/server";
-import { and, count, desc, eq, ilike } from "drizzle-orm";
+import { and, count, desc, eq, ilike, sql } from "drizzle-orm";
 import { z } from "zod";
+import { eachDateInRange } from "@/lib/date-range";
+import { earnings } from "@/lib/payout";
 import {
   CAMPAIGN_STATUS_VALUES,
   campaignFormSchema,
@@ -84,4 +86,62 @@ export const campaignsRouter = router({
     }
     return campaign;
   }),
+
+  /**
+   * SPEC.md 4.2: total approved views, budget spent/remaining, and a daily
+   * views chart across [starts_at, ends_at] with no-data days rendered as
+   * zero rather than skipped. Admin-only (budget figures are internal).
+   */
+  overview: adminProcedure
+    .input(z.object({ campaignId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const [campaign] = await ctx.db
+        .select()
+        .from(schema.campaigns)
+        .where(eq(schema.campaigns.id, input.campaignId))
+        .limit(1);
+      if (!campaign) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Campaign not found." });
+      }
+
+      const latestPerSubmission = await ctx.db.execute<{ views: number }>(sql`
+        SELECT DISTINCT ON (sm.submission_id) sm.views
+        FROM submission_metrics sm
+        JOIN submissions s ON s.id = sm.submission_id
+        WHERE s.campaign_id = ${campaign.id} AND s.status IN ('approved', 'paid')
+        ORDER BY sm.submission_id, sm.captured_at DESC
+      `);
+
+      const totalApprovedViews = latestPerSubmission.rows.reduce(
+        (sum, row) => sum + row.views,
+        0,
+      );
+      const budgetSpent = latestPerSubmission.rows.reduce(
+        (sum, row) => sum + earnings(row.views, campaign.payoutPer1kViews),
+        0,
+      );
+
+      const dailyRows = await ctx.db.execute<{ captured_at: string; views: string }>(sql`
+        SELECT sm.captured_at::text AS captured_at, SUM(sm.views)::bigint AS views
+        FROM submission_metrics sm
+        JOIN submissions s ON s.id = sm.submission_id
+        WHERE s.campaign_id = ${campaign.id}
+        GROUP BY sm.captured_at
+      `);
+      const viewsByDate = new Map(
+        dailyRows.rows.map((row) => [row.captured_at, Number(row.views)]),
+      );
+
+      const dailyViews = eachDateInRange(campaign.startsAt, campaign.endsAt).map((date) => ({
+        date,
+        views: viewsByDate.get(date) ?? 0,
+      }));
+
+      return {
+        totalApprovedViews,
+        budgetSpent,
+        budgetRemaining: campaign.totalBudget - budgetSpent,
+        dailyViews,
+      };
+    }),
 });
