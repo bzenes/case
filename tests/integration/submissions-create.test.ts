@@ -28,6 +28,28 @@ describe("submissions.create", () => {
     expect((thrown as TRPCError).code).toBe("CONFLICT");
   });
 
+  it("rejects a URL whose shape doesn't match the claimed platform, even when the campaign accepts that platform", async () => {
+    const creator = await createUser({ role: "creator" });
+    // Campaign accepts tiktok, so this isolates the URL-shape heuristic from
+    // the separate "campaign doesn't accept this platform" business check.
+    const campaign = await createCampaign({ status: "active", platforms: ["tiktok"] });
+    const caller = await createCaller({ id: creator.id, email: creator.email, role: "creator" });
+
+    let thrown: unknown;
+    try {
+      await caller.submissions.create({
+        campaignId: campaign.id,
+        postUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        platform: "tiktok",
+      });
+    } catch (err) {
+      thrown = err;
+    }
+
+    expect(thrown).toBeInstanceOf(TRPCError);
+    expect((thrown as TRPCError).code).toBe("BAD_REQUEST");
+  });
+
   it("rejects a submission to a platform the campaign doesn't accept", async () => {
     const creator = await createUser({ role: "creator" });
     const campaign = await createCampaign({ status: "active", platforms: ["youtube"] });

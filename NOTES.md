@@ -17,6 +17,9 @@ throwaway Postgres.
 
 ## Deploying (e.g. Vercel)
 
+**Done:** live at https://case-five-psi.vercel.app (Vercel + Neon
+Postgres), migrated and seeded. Steps below are what was actually run.
+
 1. Set env vars: `DATABASE_URL` (pooled connection string from your Postgres
    provider, e.g. Vercel Postgres/Neon - `sslmode=require` required),
    `SESSION_SECRET` (a real random value, e.g. `openssl rand -hex 32`). Leave
@@ -170,10 +173,14 @@ same test (fresh fixtures each time via `resetDb()`), per PLAN.md's "run
   review queue.** Both are scoped to one creator or one campaign's pending
   items, which stays small; server-side pagination there wasn't asked for
   and would be premature.
-- **Deploying to a live URL and pushing the repo public** (PLAN.md Phase
-  8). Both require an external hosting/GitHub account this environment
-  doesn't have credentials for - see the message accompanying these notes
-  for what's needed to finish that step.
+- Not actually cut, just noting where it ended up: **deploying and
+  pushing the repo public** (PLAN.md Phase 8) needed the user's own
+  GitHub/Vercel accounts (no credentials for either exist in this dev
+  environment). Done collaboratively: repo pushed to
+  `https://github.com/bzenes/case`, deployed to Vercel
+  (`https://case-five-psi.vercel.app`) with a Neon Postgres database,
+  migrations + seed run against production, and the full approve/
+  reject/ingest/budget flow re-verified against the live URL after.
 
 ## What I'd fix next
 
