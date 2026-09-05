@@ -15,6 +15,13 @@ one of the seeded users.
 `pnpm test` requires no other setup - it spins up and tears down its own
 throwaway Postgres.
 
+Docker varsa `docker-compose up -d && pnpm db:migrate` ile de
+çalıştırılabilir, embedded-postgres yalnızca bu geliştirme ortamında
+Docker'ın kurulamaması nedeniyle tercih edildi. Bu yolu seçersen `.env`'de
+`USE_EMBEDDED_PG=false` yap ve `DATABASE_URL`'i compose'un maplediği
+`5432` portuna göre güncelle (`postgres://postgres:postgres@127.0.0.1:5432/app`)
+- iki yaklaşım birbirinden bağımsız, aynı anda otomatik senkronize olmuyor.
+
 ## Deploying (e.g. Vercel)
 
 **Done:** live at https://case-five-psi.vercel.app (Vercel + Neon
