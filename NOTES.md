@@ -75,6 +75,16 @@ throwaway Postgres.
   same pattern shadcn generates (`cva` + `tailwind-merge` + a `cn` helper),
   since SPEC.md explicitly doesn't grade visual/design polish and the CLI's
   interactive prompts don't work well in a non-interactive shell.
+- **No `campaigns.delete` procedure.** SPEC.md's Admin section only lists
+  "create/edit campaign," never delete; TESTING.md #4 says "creator cannot
+  edit/delete a campaign" but that reads as describing the class of
+  admin-only campaign-mutation endpoints generically, tested against
+  whichever exist. Built `create` + `update` only and tested creator access
+  against both.
+- Submission ownership checks return `NOT_FOUND` (not `FORBIDDEN`) when a
+  creator requests another creator's submission by id, so a hand-crafted id
+  can't be used to distinguish "doesn't exist" from "exists but isn't
+  yours."
 - No `superjson` transformer on the tRPC client/server: all data crossing
   the wire is either plain JSON-safe types or dates represented as
   `YYYY-MM-DD` strings in Zod schemas, so the default JSON serialization is
