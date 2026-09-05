@@ -1,0 +1,97 @@
+# NOTES
+
+## Setup (verify on a clean checkout)
+
+```
+pnpm install
+pnpm db:migrate
+pnpm db:seed
+pnpm dev
+```
+
+Then open http://localhost:3000 and use the dev user-switcher to sign in as
+one of the seeded users.
+
+`pnpm test` requires no other setup - it spins up and tears down its own
+throwaway Postgres.
+
+## Assumptions
+
+- **No Docker/Postgres available in this dev environment.** `docker` and
+  `psql`/`pg_ctl` are not installed and there's no admin/interactive path to
+  install Docker Desktop here. Substituted `embedded-postgres` (an npm
+  package that downloads and runs a real Postgres binary, no Docker/admin
+  rights needed) for both local dev and tests, in place of the
+  `docker-compose.yml` PLAN.md suggests:
+  - Dev: `USE_EMBEDDED_PG=true` in `.env` makes `src/server/db/client.ts`
+    lazily start a persistent embedded cluster (data dir `.pgdata/`, port
+    54329) the first time the app touches the DB. A real deployment sets
+    `USE_EMBEDDED_PG=false` and points `DATABASE_URL` at a real Postgres
+    instead - `embedded-postgres` is a devDependency, never imported by a
+    code path that runs without that flag.
+  - Tests: Vitest's `globalSetup` (`tests/setup/global-setup.ts`) starts a
+    separate, non-persistent embedded cluster (data dir `.pgdata-test/`,
+    port 54330) once per test run, runs migrations, and tears it down
+    (deleting the data dir) after. This is a real Postgres with real
+    transactions, per TESTING.md's requirement for the concurrency/ingest
+    tests - not mocked.
+  - `next.config.ts` marks `embedded-postgres` as a `serverExternalPackage`:
+    it dynamically `import()`s a package per OS/arch, and Next's webpack
+    server bundler otherwise tries to statically resolve every branch
+    (including platforms we didn't install), which fails the build.
+  - `initdb` is forced to `--locale=C --encoding=UTF8` (see
+    `src/server/db/embedded-shared.ts`). The host OS locale is Turkish, and
+    initdb rejects non-ASCII locale names outright; C locale + UTF8 encoding
+    sidesteps that while still storing arbitrary Unicode text.
+  - On Windows, `embedded-postgres` stops the server via `taskkill /f`
+    (there's no SIGINT), so you'll see a "database system was interrupted"
+    / crash-recovery log line every time a script's Postgres instance shuts
+    down. This is expected and harmless (WAL replay makes it consistent);
+    it isn't evidence of a real crash.
+- **`gen_random_uuid()` needs no extension.** It's been a core Postgres
+  built-in (not requiring `pgcrypto`) since PG13; the embedded cluster runs
+  PG17.
+- **`campaigns.platforms` is a Postgres array of the platform enum**, not a
+  join table. A campaign's platform set is small and fixed-cardinality, and
+  nothing queries it relationally (no "campaigns sharing a platform with
+  X"), so the array avoids a needless join table.
+- **Title search uses `ilike`**, not `pg_trgm`, since the take-home doesn't
+  need fuzzy/ranked search - `ilike '%term%'` is enough and needs no
+  extension.
+- **Foreign keys are `onDelete: 'restrict'` everywhere** (SCHEMA.md
+  default); nothing in SPEC.md calls for cascading deletes.
+- **`rejection_reason` required-when-rejected is enforced by both a Postgres
+  `CHECK` constraint and app-level Zod validation** on the reject procedure,
+  per SCHEMA.md's "app-level + optionally CHECK constraint" note.
+- shadcn/ui's interactive CLI (`shadcn init`) wasn't run; instead a couple of
+  hand-written primitives (`src/components/ui/button.tsx`) follow the exact
+  same pattern shadcn generates (`cva` + `tailwind-merge` + a `cn` helper),
+  since SPEC.md explicitly doesn't grade visual/design polish and the CLI's
+  interactive prompts don't work well in a non-interactive shell.
+- No `superjson` transformer on the tRPC client/server: all data crossing
+  the wire is either plain JSON-safe types or dates represented as
+  `YYYY-MM-DD` strings in Zod schemas, so the default JSON serialization is
+  enough and avoids an extra dependency.
+
+## Budget/concurrency approach
+
+(filled in during Phase 2)
+
+## What was cut
+
+(filled in during Phase 7)
+
+## AI tooling
+
+Built with Claude Code (Sonnet 5), working phase-by-phase from PLAN.md.
+
+- Phase 0 (scaffold): generated wholesale - package.json dependency list,
+  tsconfig/tailwind/postcss/eslint configs, Drizzle schema matching
+  SCHEMA.md, tRPC server/client wiring, session cookie helper, dev
+  user-switcher UI, seed script.
+- Had to debug and correct two real environment issues, not just
+  hallucinated code: (1) `initdb` failing on the Turkish Windows locale, and
+  (2) Next's webpack bundler statically resolving `embedded-postgres`'s
+  per-platform dynamic imports and failing the build. Both root-caused by
+  actually running the dev server / migration and reading the error, then
+  fixed rather than worked around.
