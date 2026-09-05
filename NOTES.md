@@ -15,6 +15,22 @@ one of the seeded users.
 `pnpm test` requires no other setup - it spins up and tears down its own
 throwaway Postgres.
 
+## Deploying (e.g. Vercel)
+
+1. Set env vars: `DATABASE_URL` (pooled connection string from your Postgres
+   provider, e.g. Vercel Postgres/Neon - `sslmode=require` required),
+   `SESSION_SECRET` (a real random value, e.g. `openssl rand -hex 32`). Leave
+   `USE_EMBEDDED_PG` unset - it must never be `"true"` outside local dev,
+   since it spawns a real Postgres process that a serverless environment
+   can't run.
+2. Run migrations once against the **unpooled** connection string (same
+   provider, e.g. `DATABASE_URL_UNPOOLED`/`POSTGRES_URL_NON_POOLING`) before
+   or right after the first deploy - it isn't wired into the Vercel build:
+   `DATABASE_URL="<unpooled url>" pnpm db:migrate`.
+3. `pnpm db:seed` optionally, the same way, for demo data.
+
+See `.env.example` for the full annotated list.
+
 ## Assumptions
 
 - **No Docker/Postgres available in this dev environment.** `docker` and
