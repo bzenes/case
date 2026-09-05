@@ -21,10 +21,14 @@ const DATA_DIR = path.resolve(process.cwd(), ".pgdata-test");
 export default async function setup() {
   rmSync(DATA_DIR, { recursive: true, force: true });
 
+  // persistent: true, even though this cluster is throwaway - stop() would
+  // otherwise try to rm the data dir immediately after killing the process,
+  // which races Windows still holding file handles open (EBUSY). The
+  // rmSync above already gives each run a clean slate instead.
   const pg = createEmbeddedPostgres({
     databaseDir: DATA_DIR,
     port: TEST_PG_PORT,
-    persistent: false,
+    persistent: true,
   });
   await pg.initialise();
   await pg.start();
@@ -44,7 +48,6 @@ export default async function setup() {
   await pool.end();
 
   return async () => {
-    // persistent: false means stop() also deletes DATA_DIR.
     await pg.stop();
   };
 }

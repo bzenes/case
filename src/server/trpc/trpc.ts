@@ -1,7 +1,23 @@
 import { initTRPC, TRPCError } from "@trpc/server";
 import type { Context } from "./context";
+import type { ApprovalErrorReason } from "./approval-error";
 
-const t = initTRPC.context<Context>().create();
+const t = initTRPC.context<Context>().create({
+  errorFormatter({ shape, error }) {
+    const cause = error.cause;
+    const reason: ApprovalErrorReason | undefined =
+      cause && typeof cause === "object" && "reason" in cause
+        ? (cause as { reason: ApprovalErrorReason }).reason
+        : undefined;
+    return {
+      ...shape,
+      data: {
+        ...shape.data,
+        reason,
+      },
+    };
+  },
+});
 
 export const router = t.router;
 export const publicProcedure = t.procedure;

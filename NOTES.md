@@ -43,6 +43,13 @@ throwaway Postgres.
     `src/server/db/embedded-shared.ts`). The host OS locale is Turkish, and
     initdb rejects non-ASCII locale names outright; C locale + UTF8 encoding
     sidesteps that while still storing arbitrary Unicode text.
+  - The test cluster uses `persistent: true` even though it's throwaway data:
+    `persistent: false` makes the library `fs.rm` the data dir immediately
+    after killing the Postgres process, which raced Windows still holding
+    file handles open (`EBUSY`) and failed `pnpm test`'s exit code even
+    though every test had passed. `global-setup.ts` instead `rmSync`s the
+    directory at the *start* of the next run, once the prior process has
+    fully exited.
   - On Windows, `embedded-postgres` stops the server via `taskkill /f`
     (there's no SIGINT), so you'll see a "database system was interrupted"
     / crash-recovery log line every time a script's Postgres instance shuts
@@ -75,7 +82,52 @@ throwaway Postgres.
 
 ## Budget/concurrency approach
 
-(filled in during Phase 2)
+Implemented exactly as BUDGET_CONCURRENCY.md specifies, no alternative
+approach: `submissions.approve` (`src/server/trpc/routers/submissions.ts`)
+runs inside a single `db.transaction`, using `tx` for every query. Inside
+that transaction:
+
+1. `SELECT ... FOR UPDATE` on the campaign row. This is the actual fix - a
+   second concurrent `approve` call on the same campaign blocks here until
+   the first transaction commits or rolls back, so it never reads a stale
+   budget figure.
+2. Spend-so-far is computed *after* acquiring the lock: latest metric row
+   per `approved`/`paid` submission in the campaign (Postgres `DISTINCT ON`),
+   reduced through the same `earnings()` used by the unit tests, so the
+   aggregate and the per-submission math can't drift apart.
+3. If `spendSoFar + thisPayout > totalBudget`, throw a typed `CONFLICT` with
+   `cause.reason = 'BUDGET_EXCEEDED'` (rolls back the transaction).
+4. Otherwise `UPDATE submissions SET status = 'approved' ... WHERE status =
+   'pending'` - the `WHERE` guard is the belt-and-suspenders check for two
+   clicks on the *same* submission; 0 rows updated throws
+   `ALREADY_REVIEWED`.
+5. If the approval brings remaining budget to exactly 0, the campaign is
+   flipped to `completed` in the same transaction, same statement block -
+   not a follow-up write.
+
+Didn't try and reject an alternative first - `FOR UPDATE` was the plan from
+the start, since BUDGET_CONCURRENCY.md rules out an app-level mutex and a
+decremented `budget_remaining` column, and optimistic concurrency (version
+column + retry) is strictly more moving parts for the same single-hot-row
+problem.
+
+**Typed error contract:** `src/server/trpc/approval-error.ts` wraps
+`TRPCError` with `cause: { reason }`; `initTRPC.create({ errorFormatter })`
+in `src/server/trpc/trpc.ts` re-exposes `reason` on the serialized error's
+`data`, so an HTTP/React Query client can branch on `error.data.reason`
+without parsing message strings. Server-side tests assert on `error.cause`
+directly (calling procedures in-process via `appRouter.createCaller`,
+bypassing HTTP, so the formatter never runs).
+
+**How the concurrency test proves it**
+(`tests/integration/concurrent-approvals.test.ts`): two pending submissions
+of equal cost, budget covers exactly one; both `approve` calls started via
+`Promise.allSettled` (not awaited one-at-a-time); asserts exactly one
+`fulfilled` and one `rejected` with `BUDGET_EXCEEDED`, exactly one
+`approved` row in the DB, total approved spend `<=` budget, and the
+campaign auto-completed. Repeated for 8 iterations in a loop inside the
+same test (fresh fixtures each time via `resetDb()`), per PLAN.md's "run
+5-10x to shake out flakiness" - passed all 8/8 on every local run so far.
 
 ## What was cut
 
