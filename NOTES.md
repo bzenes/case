@@ -214,6 +214,10 @@ same test (fresh fixtures each time via `resetDb()`), per PLAN.md's "run
 
 Built with Claude Code (Sonnet 5), working phase-by-phase from PLAN.md.
 
+See docs/planning/ for the spec breakdown, schema design, and concurrency
+approach I wrote before implementation — these guided Claude Code through
+each phase.
+
 - Phase 0 (scaffold): generated wholesale - package.json dependency list,
   tsconfig/tailwind/postcss/eslint configs, Drizzle schema matching
   SCHEMA.md, tRPC server/client wiring, session cookie helper, dev
